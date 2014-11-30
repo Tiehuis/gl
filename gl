@@ -1,6 +1,6 @@
 #!/usr/bin/env python2.7
 
-import sys
+import sys, string
 
 usage = """usage: gl <license>
           <command> [<args>]
@@ -14,21 +14,31 @@ def gl_main(licenses):
         sys.exit()
 
     commands = { "list" : list_licenses }
+
     if (sys.argv[1] in commands):
         commands[sys.argv[1]](licenses)
     elif (sys.argv[1] in licenses):
-        print(licenses[sys.argv[1]])
+        print(var_replace(licenses[sys.argv[1]]))
     else:
-        unknown_license(sys.argv[1])
-        print("\nAvailable licenses are:")
+        print("Unknown license name: {}").format(sys.argv[1]);
         list_licenses(licenses)
 
+def var_replace(license):
+
+    matches = [ "[fullname]", "[login]", "[email]", "[project]",
+                "[description]", "[year]" ]
+
+    for variable in matches:
+        if (license.find(variable) != -1):
+            sys.stderr.write("Please enter input for field '{}': ".format(variable))
+            license = license.replace(variable, sys.stdin.readline().strip('\n'))
+
+    return license
+
 def list_licenses(licenses):
+    print("\nAvailable licenses are:")
     for key in licenses.iterkeys():
         print(key)
-
-def unknown_license(arg):
-    print("Unknown license name: {}").format(arg);
 
 
 ######################################################
