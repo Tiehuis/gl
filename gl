@@ -1,45 +1,62 @@
 #!/usr/bin/env python2.7
 
-import sys, string
+import argparse, sys, string
 
-usage = """usage: gl <license>
-          <command> [<args>]
-
-Available commands are:
-    list    list the available licenses to choose from"""
-
+# Main entry into program. licenses var is a dictionary containing available licenses
 def gl_main(licenses):
-    if (len(sys.argv) < 2):
-        print(usage)
-        sys.exit()
 
-    commands = { "list" : list_licenses }
+    commands = {}
+    parser = argparse.ArgumentParser(description='Print formatted licenses from terminal')
 
+    # positional arguments
+    commands['list'] = list_licenses
+    parser.add_argument('list', help='list the available licenses to choose from')
+
+    # optional arguments
+    parser.add_argument('-s', '--skip', action='store_true', help='do not prompt interactively')
+    parser.add_argument('-n', '--fullname', nargs=1, help='the fullname or username of the owner')
+    parser.add_argument('-e', '--email', nargs=1, help="the owner's primary email address")
+    parser.add_argument('-d', '--description', nargs=1, help='the description of the repository')
+    parser.add_argument('-y', '--year', nargs=1, help='the current year')
+    parser.add_argument('-p', '--project', nargs=1, help='the project name')
+    parser.add_argument('-l', '--login', nargs=1, help='the username of the owner')
+
+    options = vars(parser.parse_args())
+
+    # run a command if we know how
     if (sys.argv[1] in commands):
         commands[sys.argv[1]](licenses)
+    # attempt to print out a license if the first argument is a license
     elif (sys.argv[1] in licenses):
-        print(var_replace(licenses[sys.argv[1]]))
+        print(var_replace(licenses[sys.argv[1]], options, options['skip']))
+    # unknown first command, print help message
     else:
-        print("Unknown license name: {}").format(sys.argv[1]);
-        list_licenses(licenses)
+        print("Unknown command: {}\n").format(sys.argv[1]);
+        parser.print_help()
 
-def var_replace(license):
+# replace a license file with matches if we have them, otherwise prompt
+# user interactively
+def var_replace(license, default_matches, skip_unknown):
 
     matches = [ "[fullname]", "[login]", "[email]", "[project]",
                 "[description]", "[year]" ]
 
     for variable in matches:
         if (license.find(variable) != -1):
-            sys.stderr.write("Please enter input for field '{}': ".format(variable))
-            license = license.replace(variable, sys.stdin.readline().strip('\n'))
+            if (default_matches[variable[1:-1]] != None):
+                license = license.replace(variable, default_matches[variable[1:-1]][0])
+            elif (not skip_unknown):
+                sys.stderr.write("Please enter input for field '{}': "
+                        .format(variable))
+                license = license.replace(variable, sys.stdin.readline().strip('\n'))
 
     return license
 
+# list the current licenses that are available to print
 def list_licenses(licenses):
     print("\nAvailable licenses are:")
     for key in licenses.iterkeys():
         print(key)
-
 
 ######################################################
 # License section, this shouldn't usually be changed #
