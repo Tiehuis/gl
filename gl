@@ -1,60 +1,76 @@
 #!/usr/bin/env python2.7
 
-import argparse, sys, string
+import argparse
+import string
+import sys
 
-# Main entry into program. licenses var is a dictionary containing available licenses
+""" Custom usage so we can add our own commands we parse to be printed"""
+custom_usage = """gl [-h|--help] [-s|--skip] [-n <fullname>] [-e <email>]
+          [-d <description>] [-y <year>] [-p <project>] [-l <login>]
+          <command>
+
+Available commands are
+  list      list the available licenses that can be printed
+ <license> the name of the license that is to be printed"""
+
+""" Main entry into program. licenses variable is a dictionary containing
+    available licenses (see bottom of this file) """
 def gl_main(licenses):
 
-    commands = {}
-    parser = argparse.ArgumentParser(description='Print formatted licenses from terminal')
+    commands = { 'list' : list_licenses }
 
-    # positional arguments
-    commands['list'] = list_licenses
-    parser.add_argument('list', help='list the available licenses to choose from')
+    parser = argparse.ArgumentParser(
+            description='Print formatted licenses from terminal',
+            usage=custom_usage)
+    parser.add_argument('-s', '--skip', action='store_true',
+            help='do not prompt interactively')
+    parser.add_argument('-n', '--fullname', nargs=1,
+            help='the fullname or username of the owner', metavar='<fullname>')
+    parser.add_argument('-e', '--email', nargs=1,
+            help="the owner's primary email address", metavar='<email>')
+    parser.add_argument('-d', '--description', nargs=1,
+            help='the description of the repository', metavar='<description>')
+    parser.add_argument('-y', '--year', nargs=1,
+            help='the current year', metavar='<year>')
+    parser.add_argument('-p', '--project', nargs=1,
+            help='the project name', metavar='<project>')
+    parser.add_argument('-l', '--login', nargs=1,
+            help='the username of the owner', metavar='<login>')
 
-    # optional arguments
-    parser.add_argument('-s', '--skip', action='store_true', help='do not prompt interactively')
-    parser.add_argument('-n', '--fullname', nargs=1, help='the fullname or username of the owner')
-    parser.add_argument('-e', '--email', nargs=1, help="the owner's primary email address")
-    parser.add_argument('-d', '--description', nargs=1, help='the description of the repository')
-    parser.add_argument('-y', '--year', nargs=1, help='the current year')
-    parser.add_argument('-p', '--project', nargs=1, help='the project name')
-    parser.add_argument('-l', '--login', nargs=1, help='the username of the owner')
+    _opt     = parser.parse_known_args()
+    options = vars(_opt[0])  # parsed options
+    other   = _opt[1]        # unparsed options
 
-    options = vars(parser.parse_args())
-
-    # run a command if we know how
-    if (sys.argv[1] in commands):
-        commands[sys.argv[1]](licenses)
-    # attempt to print out a license if the first argument is a license
-    elif (sys.argv[1] in licenses):
-        print(var_replace(licenses[sys.argv[1]], options, options['skip']))
-    # unknown first command, print help message
+    if len(other) > 0 and other[0] in commands:
+        commands[other[0]](licenses)
+    elif len(other) > 0 and other[0] in licenses:
+        print(var_replace(licenses[other[0]], options, options['skip']))
     else:
-        print("Unknown command: {}\n").format(sys.argv[1]);
-        parser.print_help()
+        parser.print_usage()
 
-# replace a license file with matches if we have them, otherwise prompt
-# user interactively
+""" Replace matching labels in a license with user fields. If user fields
+    are not known and the skip flag wasn't passed to the program, ask for them
+    interactively """
 def var_replace(license, default_matches, skip_unknown):
 
     matches = [ "[fullname]", "[login]", "[email]", "[project]",
                 "[description]", "[year]" ]
 
     for variable in matches:
-        if (license.find(variable) != -1):
-            if (default_matches[variable[1:-1]] != None):
-                license = license.replace(variable, default_matches[variable[1:-1]][0])
-            elif (not skip_unknown):
+        if license.find(variable) != -1:
+            if default_matches[variable[1:-1]] != None:
+                license = license.replace(variable,
+                        default_matches[variable[1:-1]][0])
+            elif not skip_unknown:
                 sys.stderr.write("Please enter input for field '{}': "
                         .format(variable))
-                license = license.replace(variable, sys.stdin.readline().strip('\n'))
+                license = license.replace(variable,
+                        sys.stdin.readline().strip('\n'))
 
     return license
 
-# list the current licenses that are available to print
+""" Lists the current licenses that are available to print """
 def list_licenses(licenses):
-    print("\nAvailable licenses are:")
     for key in licenses.iterkeys():
         print(key)
 
@@ -3613,6 +3629,9 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 OTHER DEALINGS IN THE SOFTWARE.
 
 For more information, please refer to <http://unlicense.org>"""
+
+""""""
+# use the previous line for a sentinel value when adding a new license
 
 licenses = {
         "agpl-3.0"     : agpl_3_0,
