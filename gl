@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+import collections
 import os
 import re
 import sys
@@ -17,6 +18,10 @@ except EnvironmentError:
     print('Failed to script')
     sys.exit(1)
 
+# Print an error string
+def eprint(string):
+    print('error: ' + string, file=sys.stderr)
+
 # Get the current licenses as a python dictionary
 def retrieve_licenses():
     # Find just the license data from the file
@@ -24,12 +29,12 @@ def retrieve_licenses():
             SCRIPT_CONTENTS, re.MULTILINE | re.DOTALL)
 
     if not match:
-        print("Source file is corrupted!")
+        eprint('Source file is corrupted!')
         sys.exit(1)
 
     # Parse the match into a dictionary
     licenses     = match.group(1)
-    license_dict = {}
+    license_dict = collections.OrderedDict()
     last_key     = None
     last_start   = None
     last_end     = None
@@ -64,7 +69,7 @@ def insert_license(license_name, license_content):
             try:
                 index = SCRIPT_CONTENTS.index(end_marker)
             except ValueError:
-                print("Source file is corrupted!")
+                eprint('Source file is corrupted!')
                 sys.exit(1)
 
             fd.write(SCRIPT_CONTENTS[:index])
@@ -82,7 +87,7 @@ def insert_license(license_name, license_content):
         os.rename(pathnew, path)
         os.remove(pathmid)
     except OSError:
-        print('Failed to rename and update script file')
+        eprint('Failed to rename and update script file')
         sys.exit(1)
 
 # Rewrite the current licenses with the given dictionary
@@ -103,7 +108,7 @@ def rewrite_license(license_name, licenses):
             try:
                 index = SCRIPT_CONTENTS.index(start_marker) + len(start_marker)
             except ValueError:
-                print("Source file is corrupted!")
+                eprint('Source file is corrupted!')
                 sys.exit(1)
 
             fd.write(SCRIPT_CONTENTS[:index])
@@ -124,11 +129,10 @@ def rewrite_license(license_name, licenses):
         os.remove(pathmid)
         os.remove(pathnew)
     except OSError:
-        print('Failed to rename and update script file')
+        eprint('Failed to rename and update script file')
         sys.exit(1)
 
 class Parser(object):
-
     def run(self, argv):
         parser = argparse.ArgumentParser(
                      description='A Terminal License Generator',
@@ -241,15 +245,13 @@ Available commands are:
 
 
 class Command(object):
-
     # Main Commands
     def run(self, command, args):
         return getattr(self, command)(args)
 
     def list(self, args):
-        # Read the current file and obtain the licenses
-        for license_name, license_contents in retrieve_licenses().items():
-            print(license_name)
+        for key in sorted(retrieve_licenses().keys()):
+            print(key)
 
     def make(self, args):
         licenses = retrieve_licenses()
@@ -257,13 +259,13 @@ class Command(object):
         if args.name in licenses:
             print(licenses[args.name])
         else:
-            print("Error: No license with name '{}'".format(args.name))
+            eprint("No license with name '{}'".format(args.name))
 
     def new(self, args):
         licenses = retrieve_licenses()
 
         if args.name in licenses:
-            print("Error: License with name '{}' already exists".format(args.name))
+            eprint("License with name '{}' already exists".format(args.name))
             sys.exit(1)
 
         # Consider the license value a file if we start with a @ character
@@ -273,7 +275,7 @@ class Command(object):
                 with open(filename, 'r', encoding='utf-8') as fd:
                     args.license = fd.read()
             except EnvironmentError:
-                print("Failed to open file '{}'".format(filename))
+                eprint("Failed to open file '{}'".format(filename))
                 sys.exit(1)
 
         insert_license(args.name, args.license)
@@ -283,12 +285,11 @@ class Command(object):
         licenses = retrieve_licenses()
 
         if args.name not in licenses:
-            print("Error: No license to delete with name '{}'".format(args.name))
+            eprint("No license to delete with name '{}'".format(args.name))
 
         del licenses[args.name]
         rewrite_licenses(args.name, licenses)
         print("Deleted License '{}'".format(args.name))
-
 
 if __name__ == '__main__':
     # Parse command line parameters
@@ -305,7 +306,7 @@ if __name__ == '__main__':
 #[mit]
 The MIT License (MIT)
 
-Copyright (c) [year] [fullname]
+Copyright (c) {{year}} {{fullname}}
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -326,7 +327,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 #[bsd]
-Copyright (c) [year], [fullname]
+Copyright (c) {{year}}, {{fullname}}
 
 Permission to use, copy, modify, and/or distribute this software for any
 purpose with or without fee is hereby granted, provided that the above
